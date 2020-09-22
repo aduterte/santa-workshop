@@ -4,12 +4,11 @@
     "dialect": "postgres"
   },
   "test": {
-    "database": "database_test",
+    "database": "database_development",
     "dialect": "postgres"
   },
   "production": {
-    "database": "database_production",
-    "host": "127.0.0.1",
+    "use_env_variable": "DATABASE_URL",
     "dialect": "postgres",
     "dialectOptions": {
       "ssl": {
@@ -17,6 +16,6 @@
         "ssl": true
       }
     }
-  }
+  },
+  "secret": "abc"
 }
-

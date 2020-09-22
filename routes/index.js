@@ -3,6 +3,9 @@ const router = Router();
 const product = require('../controllers/product.js')
 const user = require('../controllers/user.js')
 const wishlist = require('../controllers/wishlist.js')
+const config = require('../config/config.json')
+
+
 
 router.get('/', (req, res) => res.send('This is root!'))
 
@@ -20,7 +23,7 @@ module.exports = router
 // router.delete('/users/:id', controllers.deleteUser)
 // router.post('/users', controllers.createUser)
 
-// router.get('/reviews', controllers.getAllReviews)
+// router.eget('/reviews', controllers.getAllReviews)
 // router.get('/reviews/:id', controllers.getReviewById)
 // router.patch('/reviews/:id', controllers.updateReview)
 // router.delete('/reviews/:id', controllers.deleteReview)

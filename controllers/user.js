@@ -1,12 +1,16 @@
-const User = require('../models/user');
-const Product = require('../models/product')
-const Wishlist = require('../models/wishlist')
+const { User, Wishlist } = require('../models');
+const { response } = require('express');
 // const passport = require('passport')
-// const LocalStrategy = require('passport-local').Strategy;
-// const jwt = require('jwt-simple')
+const jwt = require('jsonwebtoken');
+const passportJWT = require('passport-jwt');
+let ExtractJwt = passportJWT.ExtractJwt;
+// let JwtStrategy = passportJWT.Strategy;
 const config = require('../config/config.json')
-// const bcrypt = require('bcrypt')
+const bcrypt = require('bcrypt')
 
+let jwtOptions = {};
+jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+jwtOptions.secretOrKey = config.secret;
 
 const createUser = async (req, res) => {
     try {
@@ -15,10 +19,9 @@ const createUser = async (req, res) => {
             user,
         });
     } catch (error) {
-        return res.status(500).send(error.message);
+        return res.status(500).json({ error: error.message })
     }
 }
-
 const getAllUsers = async (req, res) => {
     try {
         const users = await User.findAll({
@@ -33,7 +36,6 @@ const getAllUsers = async (req, res) => {
         return res.status(500).send(error.message);
     }
 }
-
 const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -46,18 +48,28 @@ const getUserById = async (req, res) => {
             ]
         });
         if (user) {
-            return res.status(200).json({ User });
+            return res.status(200).json({ user });
         }
         return res.status(404).send('User with the specified ID does not exist');
     } catch (error) {
         return res.status(500).send(error.message);
     }
 }
-
+const getUser = async obj => { // gets by ID
+    return await User.findOne({
+        where: obj,
+        // where: { id: id },
+        include: [
+            {
+                model: Wishlist
+            }
+        ]
+    });
+};
 const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const [updated] = await User.update(req.body, { // check if [] is needed
+        const [updated] = await User.update(req.body, {
             where: { id: id }
         });
         if (updated) {
@@ -69,7 +81,6 @@ const updateUser = async (req, res) => {
         return res.status(500).send(error.message);
     }
 }
-
 const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
@@ -83,7 +94,81 @@ const deleteUser = async (req, res) => {
     } catch (error) {
         return res.status(500).send(error.message);
     }
-}
+};
+
+const login = async (req, res) => {
+    // const { email, password } = req.body;
+    // if (email && password) {
+    //   // we get the user with the name and save the resolved promise returned
+    //   let user = await getUser({ email });
+    //   if (!user) {
+    //     res.status(401).json({ msg: 'No such user found', user });
+    //   }
+    //   // console.log("USER.PASSWORD", user.password) // USER.PASSWORD $2b$12$deJpXZUfs2kQo2DtXoEesuUzZgvtZ4SU2zz0c0G5s.FoV1ETkveFi
+    //   // console.log("PASSWORD", password) // PASSWORD two
+    //   bcrypt.compare(req.body.password, user.password, function(err, results) {
+    //     if (err){
+    //       // handle error
+    //       return response.json({message: "Decryption error"})
+    //     }
+    //     if (results) {
+    //       // Send JWT
+    //       let payload = { id: user.id };
+    //       let token = jwt.sign(payload, jwtOptions.secretOrKey);
+    //       res.json({ msg: 'Login successful!', token: token });
+    //     } else {
+    //       // response is OutgoingMessage object that server response http request
+    //       return response.json({success: false, message: 'Password is incorrect'});
+    //     }
+    //   });
+    // }
+    const { email, password } = req.body;
+    if (email && password) {
+      // we get the user with the name and save the resolved promise returned
+      let user = await getUser({ email });
+      if (!user) {
+        res.status(401).json({ msg: 'No such user found', user });
+      }
+      console.log("USER.PASSWORD", user.password) // USER.PASSWORD $2b$12$deJpXZUfs2kQo2DtXoEesuUzZgvtZ4SU2zz0c0G5s.FoV1ETkveFi
+      console.log("PASSWORD", req.body.password) // PASSWORD two
+      bcrypt.compare(req.body.password, user.password, function(err, results) {
+        if (err){
+          // handle error
+          return res.json({message: "Decryption error"})
+        }
+        if (results) {
+          // Send JWT
+        //   let payload = { id: user.id };
+          let payload = {user}
+          let token = jwt.sign(payload, jwtOptions.secretOrKey);
+        //   res.json({ msg: 'Login successful!', user, token: 'Bearer ' + token });
+        res.json({ msg: 'Login successful!', payload, token: token });
+        } else {
+          // response is OutgoingMessage object that server response http request
+          return res.json({success: false, message: 'Password is incorrect'});
+        }
+      });
+    }
+  }
+  
+  const register = (req, res) => {
+    const { name, email, password } = req.body;
+    const saltRounds = 12
+    if(!email || !password) {
+        res.status(422).send({error: 'You must provide both an email and password'})
+    }
+    bcrypt.hash(password, saltRounds)
+    .then((hash) => {
+      const password = hash
+      createUser({ name, email, password }).then(user =>
+      res.json({ user, msg: 'account created successfully' })
+      )
+      .catch((err) => {
+          res.json({error: 'Error saving user to database'})
+      })
+    })
+  }
+
 
 module.exports = {
     createUser,
@@ -91,4 +176,8 @@ module.exports = {
     getUserById,
     updateUser,
     deleteUser,
+
+    login,
+    register,
+    getUser
 }
